@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Geodle+
-// @namespace    https://github.com/jago/geodle-viewer
-// @version      1.1.0
+// @namespace    https://github.com/jagodzinska/geodle_plus
+// @version      1.2.0
 // @description  Zeigt nach dem Spiel die eigenen Geodle-Versuche samt Zielland-Werten wieder in der Seite an (Kontinent, Bevölkerung, Fläche, Binnenland, Avg Temp, Nachbar).
 // @author       jago/claude
 // @license      MIT
@@ -119,25 +119,28 @@
     return sec;
   }
 
-  // ---- In die zentrierte Ergebnis-Spalte einhängen ----------------
+  // ---- Mount-Anker: klassenunabhängig über die Ergebnis-Flagge ----
+  // Einstieg per data-Attribut (kein Style), Anker = Ziel-Flaggengrafik der
+  // Ergebniskarte. Von dort zur Content-Spalte hochsteigen – keine Tailwind-
+  // Klassen, robust gegen Theme und vom Werbe-Loader eingeschobene DIVs.
   function mount(sec) {
     const scroll = document.querySelector('[data-allow-wheel="true"]');
-    const content = scroll?.querySelector(':scope > div');
-    const center = content?.querySelector(':scope > div.flex-1');
-    const bottom = content?.querySelector(':scope > div.mt-auto');
-    if (center) {
-      center.appendChild(sec);
-      return true;
+    if (!scroll) return false;
+
+    const flag = scroll.querySelector('img[src*="/_next/static/media/"]');
+    if (!flag) return false; // Ergebnis (mit Ziel-Flagge) noch nicht da
+
+    // Bis zum Scroll-Container hochsteigen; das letzte Element davor ist die
+    // Content-Spalte, das vorletzte die zentrierte Ergebnis-Spalte.
+    let node = flag,
+      column = flag;
+    while (node.parentElement && node.parentElement !== scroll) {
+      column = node;
+      node = node.parentElement;
     }
-    if (content && bottom) {
-      content.insertBefore(sec, bottom);
-      return true;
-    }
-    if (content) {
-      content.appendChild(sec);
-      return true;
-    }
-    return false;
+    // node = Content-Spalte (Kind von scroll), column = deren Kind mit der Flagge
+    column.appendChild(sec);
+    return true;
   }
 
   // ---- Render-Entscheidung ----------------------------------------
