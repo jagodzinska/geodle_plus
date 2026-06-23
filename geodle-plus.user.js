@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Geodle+
 // @namespace    https://github.com/jagodzinska/geodle_plus
-// @version      1.2.0
+// @version      1.3.0
 // @description  Zeigt nach dem Spiel die eigenen Geodle-Versuche samt Zielland-Werten wieder in der Seite an (Kontinent, Bevölkerung, Fläche, Binnenland, Avg Temp, Nachbar).
 // @author       jago/claude
 // @license      MIT
@@ -119,6 +119,20 @@
     return sec;
   }
 
+  // Storage leer (z. B. anderes Gerät): trotzdem ein Kasten im Länderkasten-Stil,
+  // damit erkennbar ist, dass das Skript läuft – nur eben ohne Versuchsdaten.
+  // Schrift = identisches Layout wie der Landesname in der Karte.
+  function buildEmpty() {
+    const sec = document.createElement('section');
+    sec.id = VIEW_ID;
+    sec.className = 'w-full mx-auto max-w-[27rem] flex flex-col gap-2 my-4';
+    sec.innerHTML = `
+    <div class="w-full bg-card border-2 border-border rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-center relative shrink-0 shadow-neo">
+      <span class="font-sans font-black text-base sm:text-xl text-foreground leading-none truncate">Geodle Storage leer</span>
+    </div>`;
+    return sec;
+  }
+
   // ---- Mount-Anker: klassenunabhängig über die Ergebnis-Flagge ----
   // Einstieg per data-Attribut (kein Style), Anker = Ziel-Flaggengrafik der
   // Ergebniskarte. Von dort zur Content-Spalte hochsteigen – keine Tailwind-
@@ -153,12 +167,17 @@
     }
 
     const s = loadState();
-    if (!s || !s.gameOver) {
+    // Spiel läuft noch (Storage vorhanden, aber nicht beendet) → kein Block
+    if (s && !s.gameOver) {
       existing?.remove();
       return;
-    } // nur nach Spielende, kein Duplikat während des Spiels
+    }
     if (existing) return; // schon da → nichts tun
-    const sec = build(s.guesses);
+
+    // Storage vorhanden+beendet → Versuche; Storage leer → Hinweis-Kasten.
+    // mount() greift erst, wenn die Ergebnis-Flagge da ist, also nicht während
+    // des Spiels (auch nicht bei leerem Storage).
+    const sec = s ? build(s.guesses) : buildEmpty();
     mount(sec); // findet kein Mount? Observer versucht es erneut
   }
 
