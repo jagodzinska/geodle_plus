@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Geodle+
 // @namespace    https://github.com/jagodzinska/geodle_plus
-// @version      1.3.0
+// @version      1.4.0
 // @description  Zeigt nach dem Spiel die eigenen Geodle-Versuche samt Zielland-Werten wieder in der Seite an (Kontinent, Bevölkerung, Fläche, Binnenland, Avg Temp, Nachbar).
 // @author       jago/claude
 // @license      MIT
@@ -158,6 +158,7 @@
   }
 
   // ---- Render-Entscheidung ----------------------------------------
+  let mounts = 0; // erfolgreiche Einhängungen seit letztem (Re-)Start
   function render() {
     const onGeodle = /geodle/.test(location.pathname);
     const existing = document.getElementById(VIEW_ID);
@@ -178,30 +179,62 @@
     // mount() greift erst, wenn die Ergebnis-Flagge da ist, also nicht während
     // des Spiels (auch nicht bei leerem Storage).
     const sec = s ? build(s.guesses) : buildEmpty();
-    mount(sec); // findet kein Mount? Observer versucht es erneut
+    if (mount(sec)) mounts++; // findet kein Mount? Observer versucht es erneut
   }
 
   // ---- Observer + Polling + SPA-Routing ---------------------------
+  // Observer + Intervall laufen nur, bis der Block stabil in der Seite hängt;
+  // danach ist komplett Ruhe. Der frühere Dauer-Zyklus (React wirft den Block
+  // raus, Intervall hängt ihn wieder ein) hat auf manchen Rechnern sichtbar
+  // geflackert. SPA-Navigation (History-Hook unten) startet die Beobachtung neu.
   let t;
   const schedule = () => {
     clearTimeout(t);
     t = setTimeout(render, 150);
   };
 
-  new MutationObserver(schedule).observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
+  const observer = new MutationObserver(schedule);
+  let iv = null;
+  let stableSince = 0;
 
-  // Sicherheitsnetz: Nach dem Sieg rendert die App per SPA neu und die
-  // Framer-Motion-Animation entfernt kurzzeitig Fremd-Knoten (unseren Block).
-  // Das Intervall hängt ihn wieder ein, sobald die Animation steht – ohne F5.
-  const iv = setInterval(() => {
-    if (/geodle/.test(location.pathname)) render();
-  }, 500);
-  window.addEventListener('load', schedule);
-  document.addEventListener('DOMContentLoaded', schedule);
-  window.addEventListener('beforeunload', () => clearInterval(iv));
+  function stopWatching() {
+    observer.disconnect();
+    clearTimeout(t);
+    if (iv) {
+      clearInterval(iv);
+      iv = null;
+    }
+  }
+
+  function startWatching() {
+    stableSince = 0;
+    mounts = 0;
+    observer.observe(document.body, { childList: true, subtree: true });
+    if (!iv) iv = setInterval(tick, 500);
+    schedule();
+  }
+
+  function tick() {
+    if (!/geodle/.test(location.pathname)) {
+      stopWatching();
+      return;
+    }
+    render();
+    const el = document.getElementById(VIEW_ID);
+    if (el?.isConnected) {
+      if (!stableSince) stableSince = Date.now();
+      // 3 s unangetastet → fertig. Wirft die App den Block trotzdem immer
+      // wieder raus (≥ 5 Re-Mounts), ebenfalls aufhören statt endlos zu blinken.
+      if (Date.now() - stableSince >= 3000 || mounts >= 5) stopWatching();
+    } else {
+      stableSince = 0;
+      if (mounts >= 5) stopWatching();
+    }
+  }
+
+  window.addEventListener('load', startWatching);
+  document.addEventListener('DOMContentLoaded', startWatching);
+  window.addEventListener('beforeunload', stopWatching);
 
   (function hookHistory() {
     const fire = () => window.dispatchEvent(new Event('geodle:locationchange'));
@@ -214,8 +247,8 @@
       };
     }
     window.addEventListener('popstate', fire);
-    window.addEventListener('geodle:locationchange', schedule);
+    window.addEventListener('geodle:locationchange', startWatching);
   })();
 
-  schedule();
+  startWatching();
 })();
