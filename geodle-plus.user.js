@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Geodle+
 // @namespace    https://github.com/jagodzinska/geodle_plus
-// @version      1.5.0
+// @version      1.6.0
 // @description  Zeigt nach dem Spiel die eigenen Geodle-Versuche samt Zielland-Werten wieder in der Seite an (Kontinent, Bevölkerung, Fläche, Binnenland, Avg Temp, Nachbar).
 // @author       jago/claude
 // @license      MIT
@@ -201,26 +201,27 @@
     return sec;
   }
 
-  // ---- Mount-Anker: klassenunabhängig über die Ergebnis-Flagge ----
-  // Einstieg per data-Attribut (kein Style), Anker = Ziel-Flaggengrafik der
-  // Ergebniskarte. Von dort zur Content-Spalte hochsteigen – keine Tailwind-
-  // Klassen, robust gegen Theme und vom Werbe-Loader eingeschobene DIVs.
+  // ---- Mount-Anker: gemeinsamer Ergebnis-Screen der Daily-Spiele ----
+  // Seit dem Umbau (Sept. 2026) rendert Geotrivia das Spielende in
+  // `.daily-result-screen`: fixe Viewport-Höhe, darin ein scrollender Bereich
+  // (overflow-y: auto) mit der zentrierten Ergebnis-Spalte (Werte, Flagge,
+  // „Länderfakten“, „Tippen zum Fortfahren“). Den Block hängen wir unten an
+  // diese Spalte. Den Scrollbereich finden wir über den berechneten Style
+  // statt über Tailwind-Klassen.
   function mount(sec) {
-    const scroll = document.querySelector('[data-allow-wheel="true"]');
-    if (!scroll) return false;
+    const screen = document.querySelector('.daily-result-screen');
+    if (!screen) return false; // Spiel läuft noch / Ergebnis noch nicht da
 
-    const flag = scroll.querySelector('img[src*="/_next/static/media/"]');
-    if (!flag) return false; // Ergebnis (mit Ziel-Flagge) noch nicht da
+    const scroll = [...screen.children].find(
+      (el) => getComputedStyle(el).overflowY === 'auto',
+    );
+    const column = scroll?.firstElementChild;
+    if (!column) return false;
 
-    // Bis zum Scroll-Container hochsteigen; das letzte Element davor ist die
-    // Content-Spalte, das vorletzte die zentrierte Ergebnis-Spalte.
-    let node = flag,
-      column = flag;
-    while (node.parentElement && node.parentElement !== scroll) {
-      column = node;
-      node = node.parentElement;
-    }
-    // node = Content-Spalte (Kind von scroll), column = deren Kind mit der Flagge
+    // Die Seite blockiert auf dem Desktop das Mausrad außerhalb von
+    // [data-allow-wheel] – ohne das Attribut wäre der Block nur per
+    // Scrollbalken erreichbar.
+    scroll.setAttribute('data-allow-wheel', 'true');
     column.appendChild(sec);
     return true;
   }
@@ -244,7 +245,7 @@
     if (existing) return; // schon da → nichts tun
 
     // Storage vorhanden+beendet → Versuche; Storage leer → Hinweis-Kasten.
-    // mount() greift erst, wenn die Ergebnis-Flagge da ist, also nicht während
+    // mount() greift erst, wenn der Ergebnis-Screen da ist, also nicht während
     // des Spiels (auch nicht bei leerem Storage).
     const sec = s ? build(s.guesses) : buildEmpty();
     if (mount(sec)) mounts++; // findet kein Mount? Observer versucht es erneut
