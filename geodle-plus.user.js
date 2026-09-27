@@ -7,10 +7,10 @@
 // @license      MIT
 // @match        https://geotrivia.com/*
 // @icon         https://geotrivia.com/favicon.ico
-// @homepageURL  https://github.com/jago/geodle-viewer
-// @supportURL   https://github.com/jago/geodle-viewer/issues
-// @downloadURL  https://raw.githubusercontent.com/jago/geodle-viewer/main/geodle-viewer.user.js
-// @updateURL    https://raw.githubusercontent.com/jago/geodle-viewer/main/geodle-viewer.user.js
+// @homepageURL  https://github.com/jagodzinska/geodle_plus
+// @supportURL   https://github.com/jagodzinska/geodle_plus/issues
+// @downloadURL  https://raw.githubusercontent.com/jagodzinska/geodle_plus/main/geodle-plus.user.js
+// @updateURL    https://raw.githubusercontent.com/jagodzinska/geodle_plus/main/geodle-plus.user.js
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
